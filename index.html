@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raffle Draw</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #2e3b3c;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            color: white;
+            text-align: center;
+            padding-top: 20px;
+        }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #ffffff;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 15px;
+            width: 100%;
+            max-width: 400px;
+        }
+        input[type="number"], textarea {
+            padding: 12px;
+            border: 1px solid #4e595a;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: 'Poppins', sans-serif;
+            color: #ffffff;
+            background-color: #374949;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            text-align: center;
+        }
+        input[type="number"]::placeholder, textarea::placeholder {
+            color: #b0c4c4;
+        }
+        textarea {
+            height: 200px;
+            resize: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        input[type="number"]:focus, textarea:focus {
+            border-color: #ffffff;
+            box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+            outline: none;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            background-color: #4e595a;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #ffffff;
+            color: #2e3b3c;
+        }
+        #playerDropdown {
+            padding: 12px;
+            border: 1px solid #4e595a;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: 'Poppins', sans-serif;
+            color: #ffffff;
+            background-color: #374949;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            text-align: center;
+            width: 100%;
+        }
+        #playerDropdown:focus {
+            border-color: #ffffff;
+            box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+            outline: none;
+        }
+        #result {
+            font-size: 1.5rem;
+            line-height: 2;
+            font-family: 'Poppins', sans-serif;
+            color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+            margin-top: 20px;
+            text-align: center;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .loading-spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #e06f6f;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #santa {
+            position: absolute;
+            top: 0;
+            left: -200px;
+            height: 400px;
+            animation: moveSanta 5s linear infinite;
+        }
+        @keyframes moveSanta {
+            from {
+                left: -200px;
+            }
+            to {
+                left: 100%;
+            }
+        }
+        .santa-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>守护天使</h1>
+        <div class="input-group">
+            <input type="number" id="prizeCount" placeholder="Enter number of prizes" min="1" value="8">
+            <textarea id="playerNames" placeholder="Enter player names with their gift number (e.g., John 1)">Hqy 1
+楚钰嬷嬷👁️ 2
+Philip🦆 3
+青柠🍓 4
+Ms_Q 5
+Zsc 6
+ZXL 7
+☀️who r u 8
+            </textarea>
+        </div>
+        <button onclick="startRaffle()">Start Raffle</button>
+        <select id="playerDropdown" style="display:none; margin-top: 15px;"></select>
+        <button id="drawButton" style="display:none; margin-top: 15px;" onclick="drawPrize()">Draw Prize</button>
+    </div>
+
+    <div class="santa-container">
+        <img id="santa" src="santa.gif" alt="Running Santa">
+    </div>
+
+    <div id="result">
+        <div class="loading-spinner" id="loadingSpinner"></div>
+        <div id="resultText">Results will appear here</div>
+    </div>
+
+    <script>
+        let prizePool = [];
+        let playerEntries = [];
+        let currentPlayer = null;
+
+        function startRaffle() {
+            const prizeCount = parseInt(document.getElementById('prizeCount').value);
+            playerEntries = document.getElementById('playerNames').value.trim().split('\n').map(entry => {
+                const [name, giftNumber] = entry.trim().split(/\s+(?=\d+$)/);
+                return { name, giftNumber: parseInt(giftNumber) };
+            }).filter(entry => entry.name && !isNaN(entry.giftNumber));
+
+            if (isNaN(prizeCount) || prizeCount <= 0) {
+                alert('Please enter a valid number of prizes!');
+                return;
+            }
+
+            if (playerEntries.length === 0) {
+                alert('Please enter valid player names with gift numbers!');
+                return;
+            }
+
+            if (prizeCount < playerEntries.length) {
+                alert('The number of prizes must be equal to or greater than the number of players!');
+                return;
+            }
+
+            prizePool = Array.from({ length: prizeCount }, (_, i) => i + 1);
+
+            const playerDropdown = document.getElementById('playerDropdown');
+            playerDropdown.innerHTML = '';
+            playerEntries.forEach(player => {
+                const option = document.createElement('option');
+                option.value = player.name;
+                option.textContent = player.name;
+                playerDropdown.appendChild(option);
+            });
+
+            playerDropdown.style.display = "block";
+            document.getElementById('drawButton').style.display = "block";
+            document.getElementById('resultText').innerHTML = "Select a player and draw their prize!";
+        }
+
+        function drawPrize() {
+            const playerName = document.getElementById('playerDropdown').value;
+            const player = playerEntries.find(entry => entry.name === playerName);
+
+            if (!player) {
+                alert('Please select a valid player!');
+                return;
+            }
+
+            const eligiblePrizes = prizePool.filter(prize => prize !== player.giftNumber);
+
+            if (eligiblePrizes.length === 0) {
+                document.getElementById('resultText').innerHTML = `${player.name} cannot draw a different prize.`;
+                return;
+            }
+
+            const spinner = document.getElementById('loadingSpinner');
+            const resultText = document.getElementById('resultText');
+            spinner.style.display = 'block';
+            resultText.style.display = 'none';
+
+            setTimeout(() => {
+                const randomIndex = Math.floor(Math.random() * eligiblePrizes.length);
+                const assignedPrize = eligiblePrizes[randomIndex];
+                prizePool.splice(prizePool.indexOf(assignedPrize), 1);
+
+                spinner.style.display = 'none';
+                resultText.style.display = 'block';
+                resultText.innerHTML = `${player.name} drew prize #${assignedPrize}`;
+
+                // Remove the player from the dropdown and the list
+                playerEntries = playerEntries.filter(entry => entry.name !== playerName);
+                const playerDropdown = document.getElementById('playerDropdown');
+                playerDropdown.remove(playerDropdown.selectedIndex);
+
+                if (playerEntries.length === 0) {
+                    document.getElementById('playerDropdown').style.display = "none";
+                    document.getElementById('drawButton').style.display = "none";
+                    resultText.innerHTML += '<br>All players have drawn their prizes!';
+                }
+            }, 5400); 
+
+            playSound();
+        }
+
+        function playSound() {
+            const audio = new Audio('draw.mp3');
+            audio.play();
+        }
+    </script>
+</body>
+</html>
